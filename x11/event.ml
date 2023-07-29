@@ -90,6 +90,7 @@ let read x =
 
 type handler = <
   map_request : window:window -> unit Lwt.t;
+  unmap_notify : window:window -> unit Lwt.t;
 
   configure_request :
     window:window -> width:int -> height:int -> unit Lwt.t;
@@ -118,6 +119,19 @@ module MapRequest = struct
       pad0 : uint8_t;
       seq : uint16_t;
       parent : uint32_t;
+      window : uint32_t;
+      unused : uint8_t [@len 20];
+    } [@@little_endian]
+  ]
+end
+
+module UnmapNotify = struct
+  [%%cstruct
+    type t = {
+      opcode : uint8_t;
+      pad0 : uint8_t;
+      seq : uint16_t;
+      event : uint32_t;
       window : uint32_t;
       unused : uint8_t [@len 20];
     } [@@little_endian]
@@ -214,6 +228,10 @@ let listen t (handler:handler) =
         Log.info (fun f -> f "Got MapRequest");
         let window = MapRequest.get_t_window body in
         handler#map_request ~window
+      | `Event (UnmapNotify, body) ->
+        Log.info (fun f -> f "Got UnmapNotify");
+        let window = UnmapNotify.get_t_window body in
+        handler#unmap_notify ~window
       | `Event (ConfigureRequest, body) ->
         Log.info (fun f -> f "Got ConfigureRequest");
         let window = Window.ConfigureRequest.get_t_window body in

@@ -918,7 +918,7 @@ let initialise_x ~xrdb ~selection t =
     )
 
 (* We've just spawned the Xwayland process. Run the X event loop. *)
-let listen_x11 ~selection t =
+let listen_x11 ~selection ~input t =
   let* x11 = t.x11 in
   let wl_surface_id = intern t "WL_SURFACE_ID" ~only_if_exists:false in
   (* The event handler is used to handle event message received from Xwayland. *)
@@ -943,6 +943,15 @@ let listen_x11 ~selection t =
       (* Put new windows at the bottom of the stack so they don't interfere with the active window *)
       let* () = X11.Window.configure x11 window ~stack_mode:`Below in
       X11.Window.map x11 window
+
+    method unmap_notify ~window =
+      match Hashtbl.find_opt t.paired window with
+      | Some paired  ->
+        Input.surface_destroyed input paired;
+        unpair t paired;
+        Lwt.return_unit
+      | _ ->
+        Lwt.return_unit
 
     method configure_request ~window ~width ~height =
       match Hashtbl.find_opt t.paired window with
@@ -1119,7 +1128,7 @@ let handle_xwayland ~config ~virtio_gpu ~local_wayland ~local_wm_socket =
   let xrdb = String.concat "\n" config.xrdb in
   Lwt.join [
     monitor "Xwayland Wayland thread" (fun () -> Relay.accept relay ~xwayland local_wayland);
-    monitor "Xwayland X11 thread"     (fun () -> listen_x11 ~selection t);
+    monitor "Xwayland X11 thread"     (fun () -> listen_x11 ~selection ~input t);
     monitor "Xwayland WM init thread" (fun () -> initialise_x ~xrdb ~selection t);
   ]
 

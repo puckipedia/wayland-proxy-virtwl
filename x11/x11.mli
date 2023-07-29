@@ -280,6 +280,7 @@ module Event : sig
   (** Note: the X11 event handler loop is blocked until the callback returns. *)
   type handler = <
     map_request : window:Window.t -> unit Lwt.t;
+    unmap_notify : window:Window.t -> unit Lwt.t;
 
     configure_request :
       window:Window.t -> width:int -> height:int -> unit Lwt.t;
